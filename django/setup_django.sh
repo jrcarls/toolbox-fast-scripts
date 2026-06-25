@@ -27,6 +27,19 @@ else
     read -r PROJECT
     [ -z "$PROJECT" ] && { echo "Nome não pode ser vazio."; exit 1; }
 fi
+
+echo -e -n "  ${BOLD}Criar apps? (s/N):${RESET} "
+read -r CREATE_APPS_ANSWER
+APPS=()
+
+if [[ "$CREATE_APPS_ANSWER" =~ ^[sS]$ ]]; then
+    while true; do
+        echo -e -n "  ${BOLD}Nome do app (vazio para encerrar):${RESET} "
+        read -r APP_NAME
+        [ -z "$APP_NAME" ] && break
+        APPS+=("$APP_NAME")
+    done
+fi
 echo ""
 
 # --- Criação do projeto ---
@@ -128,6 +141,7 @@ INSTALLED_APPS = [
     "debug_toolbar",
     "django_browser_reload",
     "tabler_icons",
+    # EXTRA_APPS
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -240,6 +254,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("__reload__/", include("django_browser_reload.urls")),
+    # EXTRA_URLS
 ]
 
 from django.conf import settings
@@ -248,6 +263,30 @@ if settings.DEBUG:
     import debug_toolbar
     urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
 EOF
+
+# --- Apps ---
+if [ ${#APPS[@]} -gt 0 ]; then
+    mkdir -p apps
+    touch apps/__init__.py
+
+    for app in "${APPS[@]}"; do
+        uv run python manage.py startapp "$app" "apps/$app"
+        sed -i "s/name = '$app'/name = 'apps.$app'/" "apps/$app/apps.py"
+        cat > "apps/$app/urls.py" << APPEOF
+from django.urls import path
+
+app_name = "$app"
+
+urlpatterns = []
+APPEOF
+        sed -i "s|    # EXTRA_APPS|    \"apps.$app\",\n    # EXTRA_APPS|" config/settings.py
+        sed -i "s|    # EXTRA_URLS|    path(\"$app/\", include(\"apps.$app.urls\")),\n    # EXTRA_URLS|" config/urls.py
+        echo -e "  ${GREEN}✓ App '$app' criado${RESET}"
+    done
+fi
+
+sed -i "/    # EXTRA_APPS/d" config/settings.py
+sed -i "/    # EXTRA_URLS/d" config/urls.py
 
 # --- Migrate ---
 uv run python manage.py migrate
