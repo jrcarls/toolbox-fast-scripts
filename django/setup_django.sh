@@ -37,7 +37,7 @@ uv add django django-environ django-cotton django-htmx django-allauth django-deb
 
 uv run django-admin startproject config .
 
-mkdir -p static/css static/js templates/cotton
+mkdir -p static/css static/js templates/cotton templates/home
 
 # --- HTMX ---
 echo "Baixando HTMX..."
@@ -200,6 +200,32 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOGIN_REDIRECT_URL = "/"
+EOF
+
+# --- views.py ---
+cat > config/views.py << 'EOF'
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+
+@login_required
+def home(request):
+    return render(request, "home/index.html")
+EOF
+
+# --- Template home ---
+cat > templates/home/index.html << 'EOF'
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen">
+    <p class="text-xl">Olá, {{ user.username }}!</p>
+</div>
+{% endblock %}
 EOF
 
 # --- urls.py ---
@@ -207,7 +233,10 @@ cat > config/urls.py << 'EOF'
 from django.contrib import admin
 from django.urls import include, path
 
+from config.views import home
+
 urlpatterns = [
+    path("", home, name="home"),
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("__reload__/", include("django_browser_reload.urls")),
