@@ -19,7 +19,7 @@ Script de inicialização de projetos Django com uma stack moderna e pré-config
 | [Pillow](https://pillow.readthedocs.io/) | Processamento de imagens |
 | [HTMX](https://htmx.org/) | Interatividade sem JS complexo (baixado localmente) |
 | [Alpine.js](https://alpinejs.dev/) | Reatividade leve no frontend (baixado localmente) |
-| [DaisyUI](https://daisyui.com/) + [Tailwind CSS](https://tailwindcss.com/) | Componentes e utilitários CSS |
+| [Flowbite](https://flowbite.com/docs/getting-started/django/) + [Tailwind CSS](https://tailwindcss.com/) | Componentes interativos e utilitários CSS |
 
 ## O que o script faz
 
@@ -28,46 +28,103 @@ Script de inicialização de projetos Django com uma stack moderna e pré-config
 3. Cria a estrutura de diretórios:
    ```
    static/
-   ├── css/     # Tailwind/DaisyUI compilado
-   └── js/      # HTMX e Alpine.js
+   ├── css/     # Entrada e saída compilada do Tailwind/Flowbite
+   └── js/      # HTMX, Alpine.js e Flowbite
    templates/
    ├── base.html
    └── cotton/  # Componentes django-cotton
    ```
 4. Baixa HTMX e Alpine.js localmente (sem dependência de CDN em produção)
-5. Instala DaisyUI + Tailwind CLI em `static/css/`
-6. Gera `templates/base.html` com HTMX, Alpine.js e Tailwind já conectados
-7. Gera `.env` e `.env.example` com configurações iniciais
-8. Atualiza `.gitignore` com arquivos gerados e sensíveis
-9. Gera `config/settings.py` completamente configurado com todos os apps e middlewares
-10. Executa `migrate` inicial
+5. Instala Flowbite, Tailwind CSS e Tailwind CLI via npm
+6. Gera o CSS inicial e copia o JavaScript do Flowbite para `static/js/`
+7. Gera `templates/base.html` com HTMX, Alpine.js, Tailwind e Flowbite já conectados
+8. Gera `.env` e `.env.example` com configurações iniciais
+9. Atualiza `.gitignore` com arquivos gerados e sensíveis
+10. Gera `config/settings.py` completamente configurado com todos os apps e middlewares
+11. Executa `migrate` inicial
 
 ## Pré-requisitos
 
 - [`uv`](https://docs.astral.sh/uv/getting-started/installation/) instalado
+- [Node.js](https://nodejs.org/) e npm instalados
 - `curl` disponível no sistema
+
+Para instalar o `uv` no Linux ou macOS:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc
+uv --version
+```
+
+Confirme também que Node.js, npm e curl estão disponíveis:
+
+```bash
+node --version
+npm --version
+curl --version
+```
 
 ## Como usar
 
-### Passando o nome do projeto como argumento
+### Instalar o comando globalmente
+
+Execute uma vez, a partir da raiz deste repositório:
 
 ```bash
-bash setup_django.sh meu_projeto
+bash django/install.sh
 ```
 
-### Modo interativo (sem argumento)
+O instalador cria `~/.local/bin/setup-django`. Caso o comando ainda não seja
+encontrado, adicione esse diretório ao `PATH` e recarregue o terminal:
 
 ```bash
-bash setup_django.sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Depois, entre no diretório onde deseja criar o projeto e use:
+
+```bash
+cd ~/Projects
+setup-django meu_projeto
+```
+
+O projeto será criado em `~/Projects/meu_projeto`.
+
+### Executar diretamente, sem instalar o comando
+
+A partir da raiz deste repositório, passe o nome do projeto:
+
+```bash
+bash django/setup_django.sh meu_projeto
+```
+
+Ou use o modo interativo:
+
+```bash
+bash django/setup_django.sh
 # Nome do projeto: meu_projeto
+```
+
+Nos dois modos, a pasta do projeto é criada dentro do diretório atual. Para
+criar o projeto fora da toolbox, chame o script pelo caminho absoluto:
+
+```bash
+cd ~/Projects
+bash /caminho/para/toolbox-fast-scripts/django/setup_django.sh meu_projeto
 ```
 
 ### Após a execução
 
 ```bash
 cd meu_projeto
+uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
+
+A aplicação ficará disponível em <http://127.0.0.1:8000/> e a administração
+do Django em <http://127.0.0.1:8000/admin/>.
 
 ## Estrutura gerada
 
@@ -79,10 +136,10 @@ meu_projeto/
 │   └── wsgi.py
 ├── static/
 │   ├── css/
-│   │   ├── tailwindcss      # CLI do Tailwind (no .gitignore)
-│   │   ├── daisyui*.mjs     # (no .gitignore)
+│   │   ├── input.css        # Tailwind + tema/plugin do Flowbite
 │   │   └── output.css       # CSS compilado (no .gitignore)
 │   └── js/
+│       ├── flowbite.min.js
 │       ├── htmx.min.js
 │       └── alpine.min.js
 ├── templates/
@@ -92,6 +149,8 @@ meu_projeto/
 ├── .env.example
 ├── .gitignore
 ├── manage.py
+├── package.json
+├── package-lock.json
 └── pyproject.toml
 ```
 
@@ -103,13 +162,44 @@ meu_projeto/
 | `SECRET_KEY` | insecure key | Chave secreta do Django — troque em produção |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Hosts permitidos |
 
-## Compilar CSS (Tailwind + DaisyUI)
+## Compilar CSS (Tailwind + Flowbite)
 
-Após criar o projeto, compile o CSS para que os estilos funcionem:
+O script já executa a compilação inicial. Durante o desenvolvimento, mantenha
+o watcher aberto em outro terminal para recompilar o CSS após cada alteração:
 
 ```bash
-cd meu_projeto/static/css
-./tailwindcss -i <arquivo_entrada.css> -o output.css --watch
+cd meu_projeto
+npm run css:watch
 ```
 
-Consulte a [documentação do DaisyUI](https://daisyui.com/docs/install/) para o setup completo do Tailwind.
+Para gerar uma versão minificada uma única vez:
+
+```bash
+npm run build
+```
+
+Consulte a [documentação do Flowbite para Django](https://flowbite.com/docs/getting-started/django/) para conhecer a integração e os componentes disponíveis.
+
+## Solução de problemas
+
+### Porta 8000 em uso
+
+Identifique o processo que está usando a porta padrão do Django:
+
+```bash
+lsof -nP -iTCP:8000 -sTCP:LISTEN
+```
+
+Se a porta estiver publicada por um container Docker, localize-o e pare apenas
+o container correspondente:
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+docker stop nome_do_container
+```
+
+Como alternativa, inicie o Django em outra porta:
+
+```bash
+uv run python manage.py runserver 8001
+```

@@ -17,8 +17,15 @@ echo "  ██║  ██║██   ██║██╔══██║██║�
 echo "  ██████╔╝╚█████╔╝██║  ██║██║ ╚████║╚██████╔╝╚██████╔╝"
 echo "  ╚═════╝  ╚════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝"
 echo -e "${RESET}"
-echo -e "  ${BOLD}Django Starter${RESET} — ${YELLOW}uv + htmx + alpine + daisyui + allauth${RESET}"
+echo -e "  ${BOLD}Django Starter${RESET} — ${YELLOW}uv + htmx + alpine + flowbite + allauth${RESET}"
 echo ""
+
+for dependency in uv curl npm; do
+    if ! command -v "$dependency" >/dev/null 2>&1; then
+        echo -e "${YELLOW}Dependência ausente: $dependency${RESET}"
+        exit 1
+    fi
+done
 
 if [ -n "$1" ]; then
     PROJECT="$1"
@@ -60,9 +67,31 @@ curl -sL https://cdn.jsdelivr.net/npm/htmx.org@2.x.x/dist/htmx.min.js -o static/
 echo "Baixando Alpine.js..."
 curl -sL https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js -o static/js/alpine.min.js
 
-# --- DaisyUI (inclui Tailwind CLI) ---
-echo "Instalando DaisyUI + Tailwind..."
-(cd static/css && curl -sL daisyui.com/fast | bash)
+# --- Flowbite + Tailwind CSS ---
+echo "Instalando Flowbite + Tailwind CSS..."
+cat > package.json << 'EOF'
+{
+  "private": true,
+  "scripts": {
+    "build": "npm run css:build && npm run js:build",
+    "css:build": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "css:watch": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
+    "js:build": "cp ./node_modules/flowbite/dist/flowbite.min.js ./static/js/flowbite.min.js"
+  }
+}
+EOF
+
+npm install flowbite --save
+npm install tailwindcss @tailwindcss/cli --save-dev
+
+cat > static/css/input.css << 'EOF'
+@import "tailwindcss";
+@import "flowbite/src/themes/default";
+@plugin "flowbite/plugin";
+@source "../../node_modules/flowbite";
+EOF
+
+npm run build
 
 # --- Template base ---
 cat > templates/base.html << 'EOF'
@@ -79,6 +108,7 @@ cat > templates/base.html << 'EOF'
 </head>
 <body>
     {% block content %}{% endblock %}
+    <script src="{% static 'js/flowbite.min.js' %}"></script>
 </body>
 </html>
 EOF
@@ -103,10 +133,11 @@ cat >> .gitignore << 'EOF'
 .env
 
 # Static compilado
-static/css/tailwindcss
-static/css/daisyui*.mjs
 static/css/output.css
 staticfiles/
+
+# Node.js
+node_modules/
 EOF
 
 # --- settings.py ---
